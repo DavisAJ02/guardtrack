@@ -32,9 +32,13 @@ export function useDashboardData() {
   const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS);
 
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [archivedCompanies, setArchivedCompanies] = useState<Company[]>([]);
   const [guards, setGuards] = useState<Guard[]>([]);
+  const [archivedGuards, setArchivedGuards] = useState<Guard[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
+  const [archivedSites, setArchivedSites] = useState<Site[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [archivedShifts, setArchivedShifts] = useState<Shift[]>([]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
@@ -46,6 +50,7 @@ export function useDashboardData() {
   const [checkInsLoading, setCheckInsLoading] = useState(true);
   const [incidentsLoading, setIncidentsLoading] = useState(true);
   const [activityLogsLoading, setActivityLogsLoading] = useState(true);
+  const [archivedLoading, setArchivedLoading] = useState(true);
   const [addingCompany, setAddingCompany] = useState(false);
   const [addingGuard, setAddingGuard] = useState(false);
   const [addingSite, setAddingSite] = useState(false);
@@ -74,6 +79,8 @@ export function useDashboardData() {
   const [checkInsError, setCheckInsError] = useState<string | null>(null);
   const [incidentsError, setIncidentsError] = useState<string | null>(null);
   const [activityLogsError, setActivityLogsError] = useState<string | null>(null);
+  const [archivedError, setArchivedError] = useState<string | null>(null);
+  const [supportsSoftDelete, setSupportsSoftDelete] = useState(true);
 
   const companyNameById = useMemo(
     () =>
@@ -95,11 +102,24 @@ export function useDashboardData() {
 
   const fetchCompanies = useCallback(async () => {
     setCompaniesLoading(true);
-    let response = await supabase.from("companies").select("*").is("archived_at", null);
-    if (response.error && response.error.message.includes("archived_at")) {
-      response = await supabase.from("companies").select("*");
+    const activeRes = await supabase.from("companies").select("*").is("archived_at", null);
+    if (activeRes.error && activeRes.error.message.includes("archived_at")) {
+      setSupportsSoftDelete(false);
+      const fallbackRes = await supabase.from("companies").select("*");
+      if (fallbackRes.error) {
+        setCompaniesError(fallbackRes.error.message);
+        setCompanies([]);
+      } else {
+        setCompaniesError(null);
+        setCompanies((fallbackRes.data as Company[]) ?? []);
+      }
+      setArchivedCompanies([]);
+      setCompaniesLoading(false);
+      return;
     }
-    const { data, error } = response;
+    setSupportsSoftDelete(true);
+    const archivedRes = await supabase.from("companies").select("*").not("archived_at", "is", null);
+    const { data, error } = activeRes;
     if (error) {
       setCompaniesError(error.message);
       setCompanies([]);
@@ -107,19 +127,42 @@ export function useDashboardData() {
       setCompaniesError(null);
       setCompanies((data as Company[]) ?? []);
     }
+    if (archivedRes.error) {
+      setArchivedError(archivedRes.error.message);
+      setArchivedCompanies([]);
+    } else {
+      setArchivedError(null);
+      setArchivedCompanies((archivedRes.data as Company[]) ?? []);
+    }
     setCompaniesLoading(false);
   }, []);
 
   const fetchGuards = useCallback(async () => {
     setGuardsLoading(true);
-    let response = await supabase
+    const activeRes = await supabase
       .from("users")
       .select("id, name, company_id, companies(name)")
       .is("archived_at", null);
-    if (response.error && response.error.message.includes("archived_at")) {
-      response = await supabase.from("users").select("id, name, company_id, companies(name)");
+    if (activeRes.error && activeRes.error.message.includes("archived_at")) {
+      setSupportsSoftDelete(false);
+      const fallbackRes = await supabase.from("users").select("id, name, company_id, companies(name)");
+      if (fallbackRes.error) {
+        setGuardsError(fallbackRes.error.message);
+        setGuards([]);
+      } else {
+        setGuardsError(null);
+        setGuards((fallbackRes.data as Guard[]) ?? []);
+      }
+      setArchivedGuards([]);
+      setGuardsLoading(false);
+      return;
     }
-    const { data, error } = response;
+    setSupportsSoftDelete(true);
+    const archivedRes = await supabase
+      .from("users")
+      .select("id, name, company_id, companies(name), archived_at")
+      .not("archived_at", "is", null);
+    const { data, error } = activeRes;
     if (error) {
       setGuardsError(error.message);
       setGuards([]);
@@ -127,19 +170,42 @@ export function useDashboardData() {
       setGuardsError(null);
       setGuards((data as Guard[]) ?? []);
     }
+    if (archivedRes.error) {
+      setArchivedError(archivedRes.error.message);
+      setArchivedGuards([]);
+    } else {
+      setArchivedError(null);
+      setArchivedGuards((archivedRes.data as Guard[]) ?? []);
+    }
     setGuardsLoading(false);
   }, []);
 
   const fetchSites = useCallback(async () => {
     setSitesLoading(true);
-    let response = await supabase
+    const activeRes = await supabase
       .from("sites")
       .select("id, name, company_id, companies(name)")
       .is("archived_at", null);
-    if (response.error && response.error.message.includes("archived_at")) {
-      response = await supabase.from("sites").select("id, name, company_id, companies(name)");
+    if (activeRes.error && activeRes.error.message.includes("archived_at")) {
+      setSupportsSoftDelete(false);
+      const fallbackRes = await supabase.from("sites").select("id, name, company_id, companies(name)");
+      if (fallbackRes.error) {
+        setSitesError(fallbackRes.error.message);
+        setSites([]);
+      } else {
+        setSitesError(null);
+        setSites((fallbackRes.data as Site[]) ?? []);
+      }
+      setArchivedSites([]);
+      setSitesLoading(false);
+      return;
     }
-    const { data, error } = response;
+    setSupportsSoftDelete(true);
+    const archivedRes = await supabase
+      .from("sites")
+      .select("id, name, company_id, companies(name), archived_at")
+      .not("archived_at", "is", null);
+    const { data, error } = activeRes;
     if (error) {
       setSitesError(error.message);
       setSites([]);
@@ -147,12 +213,19 @@ export function useDashboardData() {
       setSitesError(null);
       setSites((data as Site[]) ?? []);
     }
+    if (archivedRes.error) {
+      setArchivedError(archivedRes.error.message);
+      setArchivedSites([]);
+    } else {
+      setArchivedError(null);
+      setArchivedSites((archivedRes.data as Site[]) ?? []);
+    }
     setSitesLoading(false);
   }, []);
 
   const fetchShifts = useCallback(async () => {
     setShiftsLoading(true);
-    let response = await supabase
+    const activeRes = await supabase
       .from("shifts")
       .select(`
         id,
@@ -162,22 +235,52 @@ export function useDashboardData() {
         sites(name)
       `)
       .is("archived_at", null);
-    if (response.error && response.error.message.includes("archived_at")) {
-      response = await supabase.from("shifts").select(`
+    if (activeRes.error && activeRes.error.message.includes("archived_at")) {
+      setSupportsSoftDelete(false);
+      const fallbackRes = await supabase.from("shifts").select(`
         id,
         guard_id,
         site_id,
         users(name),
         sites(name)
       `);
+      if (fallbackRes.error) {
+        setShiftsError(fallbackRes.error.message);
+        setShifts([]);
+      } else {
+        setShiftsError(null);
+        setShifts((fallbackRes.data as Shift[]) ?? []);
+      }
+      setArchivedShifts([]);
+      setShiftsLoading(false);
+      return;
     }
-    const { data, error } = response;
+    setSupportsSoftDelete(true);
+    const archivedRes = await supabase
+      .from("shifts")
+      .select(`
+        id,
+        guard_id,
+        site_id,
+        users(name),
+        sites(name),
+        archived_at
+      `)
+      .not("archived_at", "is", null);
+    const { data, error } = activeRes;
     if (error) {
       setShiftsError(error.message);
       setShifts([]);
     } else {
       setShiftsError(null);
       setShifts((data as Shift[]) ?? []);
+    }
+    if (archivedRes.error) {
+      setArchivedError(archivedRes.error.message);
+      setArchivedShifts([]);
+    } else {
+      setArchivedError(null);
+      setArchivedShifts((archivedRes.data as Shift[]) ?? []);
     }
     setShiftsLoading(false);
   }, []);
@@ -218,7 +321,7 @@ export function useDashboardData() {
     setActivityLogsLoading(true);
     const { data, error } = await supabase
       .from("activity_logs")
-      .select("id, action, entity, entity_id, details, created_at")
+      .select("id, action, entity, entity_id, details, actor_id, actor_email, before_json, after_json, created_at")
       .order("created_at", { ascending: false })
       .limit(30);
     if (error) {
@@ -236,24 +339,55 @@ export function useDashboardData() {
   }, []);
 
   const recordActivity = useCallback(
-    async (action: string, entity: string, entityId: string, details: string) => {
+    async (
+      action: string,
+      entity: string,
+      entityId: string,
+      details: string,
+      options?: {
+        before?: Record<string, unknown> | null;
+        after?: Record<string, unknown> | null;
+      }
+    ) => {
+      const { data: authData } = await supabase.auth.getSession();
+      const actorId = authData.session?.user.id ?? null;
+      const actorEmail = authData.session?.user.email ?? null;
       const optimistic: ActivityLog = {
         id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         action,
         entity,
         entity_id: entityId,
         details,
+        actor_id: actorId,
+        actor_email: actorEmail,
+        before_json: options?.before ?? null,
+        after_json: options?.after ?? null,
         created_at: new Date().toISOString(),
       };
       setActivityLogs((prev) => [optimistic, ...prev].slice(0, 30));
-      const { error } = await supabase.from("activity_logs").insert([
+      let insertRes = await supabase.from("activity_logs").insert([
         {
           action,
           entity,
           entity_id: entityId,
           details,
+          actor_id: actorId,
+          actor_email: actorEmail,
+          before_json: options?.before ?? null,
+          after_json: options?.after ?? null,
         },
       ]);
+      if (insertRes.error && insertRes.error.message.includes("column")) {
+        insertRes = await supabase.from("activity_logs").insert([
+          {
+            action,
+            entity,
+            entity_id: entityId,
+            details,
+          },
+        ]);
+      }
+      const { error } = insertRes;
       if (!error) {
         await fetchActivityLogs();
       }
@@ -283,6 +417,26 @@ export function useDashboardData() {
       return { ok: false, error: softDeleteRes.error.message };
     },
     []
+  );
+
+  const restoreEntity = useCallback(
+    async (table: "companies" | "users" | "sites" | "shifts", itemId: string) => {
+      if (!supportsSoftDelete) {
+        return { ok: false, error: "Restore requires archived_at support in database." };
+      }
+      const dbId = toDbId(itemId);
+      const restoreRes = await supabase
+        .from(table)
+        .update({ archived_at: null })
+        .eq("id", dbId)
+        .select("id")
+        .single();
+      if (!restoreRes.error) {
+        return { ok: true };
+      }
+      return { ok: false, error: restoreRes.error.message };
+    },
+    [supportsSoftDelete]
   );
 
   const fetchStats = useCallback(async () => {
@@ -322,6 +476,7 @@ export function useDashboardData() {
   }, []);
 
   const refreshAll = useCallback(async () => {
+    setArchivedLoading(true);
     await Promise.all([
       fetchStats(),
       fetchCompanies(),
@@ -332,6 +487,7 @@ export function useDashboardData() {
       fetchIncidents(),
       fetchActivityLogs(),
     ]);
+    setArchivedLoading(false);
   }, [fetchStats, fetchCompanies, fetchGuards, fetchSites, fetchShifts, fetchCheckIns, fetchIncidents, fetchActivityLogs]);
 
   const handleAddCompany = useCallback(async () => {
@@ -392,6 +548,7 @@ export function useDashboardData() {
       const trimmed = name.trim();
       if (!trimmed) return;
       setCompanyActionId(companyId);
+      const previous = companies.find((company) => String(company.id) === companyId) ?? null;
       const dbId = toDbId(companyId);
       const { data, error } = await supabase
         .from("companies")
@@ -403,19 +560,23 @@ export function useDashboardData() {
         setCompanies((prev) =>
           prev.map((company) => (String(company.id) === companyId ? { ...company, name: data.name } : company))
         );
-      setActionMessage({ type: "success", text: "Company updated." });
-      await recordActivity("update", "company", companyId, `Renamed company to "${trimmed}"`);
+        setActionMessage({ type: "success", text: "Company updated." });
+        await recordActivity("update", "company", companyId, `Renamed company to "${trimmed}"`, {
+          before: previous ? { name: previous.name } : null,
+          after: { name: trimmed },
+        });
       } else if (error) {
         setCompaniesError(error.message);
-      setActionMessage({ type: "error", text: `Company update failed: ${error.message}` });
+        setActionMessage({ type: "error", text: `Company update failed: ${error.message}` });
       }
       setCompanyActionId(null);
     },
-    [recordActivity]
+    [companies, recordActivity]
   );
 
   const handleDeleteCompany = useCallback(async (companyId: string) => {
     setCompanyActionId(companyId);
+    const previous = companies.find((company) => String(company.id) === companyId) ?? null;
     const result = await softDeleteEntity("companies", companyId);
     if (result.ok) {
       setCompanies((prev) => prev.filter((company) => String(company.id) !== companyId));
@@ -428,14 +589,35 @@ export function useDashboardData() {
         result.mode === "soft" ? "archive" : "delete",
         "company",
         companyId,
-        result.mode === "soft" ? "Soft-deleted company via archived_at." : "Hard-deleted company fallback."
+        result.mode === "soft" ? "Soft-deleted company via archived_at." : "Hard-deleted company fallback.",
+        {
+          before: previous ? { id: previous.id, name: previous.name } : null,
+          after: result.mode === "soft" ? { archived_at: new Date().toISOString() } : null,
+        }
       );
     } else {
       setCompaniesError(result.error ?? "Unknown error");
       setActionMessage({ type: "error", text: `Company delete failed: ${result.error}` });
     }
     setCompanyActionId(null);
-  }, [fetchStats, recordActivity, softDeleteEntity]);
+  }, [companies, fetchStats, recordActivity, softDeleteEntity]);
+
+  const handleRestoreCompany = useCallback(
+    async (companyId: string) => {
+      setCompanyActionId(companyId);
+      const result = await restoreEntity("companies", companyId);
+      if (result.ok) {
+        await fetchCompanies();
+        await fetchStats();
+        setActionMessage({ type: "success", text: "Company restored." });
+        await recordActivity("restore", "company", companyId, "Restored archived company.");
+      } else {
+        setActionMessage({ type: "error", text: `Company restore failed: ${result.error}` });
+      }
+      setCompanyActionId(null);
+    },
+    [fetchCompanies, fetchStats, recordActivity, restoreEntity]
+  );
 
   const handleAddSite = useCallback(async () => {
     const name = newSiteName.trim();
@@ -466,6 +648,7 @@ export function useDashboardData() {
     const trimmed = name.trim();
     if (!trimmed) return;
     setGuardActionId(guardId);
+    const previous = guards.find((guard) => String(guard.id) === guardId) ?? null;
     const dbId = toDbId(guardId);
     const { data, error } = await supabase
       .from("users")
@@ -478,16 +661,20 @@ export function useDashboardData() {
         prev.map((guard) => (String(guard.id) === guardId ? { ...guard, name: data.name } : guard))
       );
       setActionMessage({ type: "success", text: "Guard updated." });
-      await recordActivity("update", "guard", guardId, `Renamed guard to "${trimmed}"`);
+      await recordActivity("update", "guard", guardId, `Renamed guard to "${trimmed}"`, {
+        before: previous ? { name: previous.name } : null,
+        after: { name: trimmed },
+      });
     } else if (error) {
       setGuardsError(error.message);
       setActionMessage({ type: "error", text: `Guard update failed: ${error.message}` });
     }
     setGuardActionId(null);
-  }, [recordActivity]);
+  }, [guards, recordActivity]);
 
   const handleDeleteGuard = useCallback(async (guardId: string) => {
     setGuardActionId(guardId);
+    const previous = guards.find((guard) => String(guard.id) === guardId) ?? null;
     const result = await softDeleteEntity("users", guardId);
     if (result.ok) {
       setGuards((prev) => prev.filter((guard) => String(guard.id) !== guardId));
@@ -500,19 +687,41 @@ export function useDashboardData() {
         result.mode === "soft" ? "archive" : "delete",
         "guard",
         guardId,
-        result.mode === "soft" ? "Soft-deleted guard via archived_at." : "Hard-deleted guard fallback."
+        result.mode === "soft" ? "Soft-deleted guard via archived_at." : "Hard-deleted guard fallback.",
+        {
+          before: previous ? { id: previous.id, name: previous.name } : null,
+          after: result.mode === "soft" ? { archived_at: new Date().toISOString() } : null,
+        }
       );
     } else {
       setGuardsError(result.error ?? "Unknown error");
       setActionMessage({ type: "error", text: `Guard delete failed: ${result.error}` });
     }
     setGuardActionId(null);
-  }, [fetchStats, recordActivity, softDeleteEntity]);
+  }, [guards, fetchStats, recordActivity, softDeleteEntity]);
+
+  const handleRestoreGuard = useCallback(
+    async (guardId: string) => {
+      setGuardActionId(guardId);
+      const result = await restoreEntity("users", guardId);
+      if (result.ok) {
+        await fetchGuards();
+        await fetchStats();
+        setActionMessage({ type: "success", text: "Guard restored." });
+        await recordActivity("restore", "guard", guardId, "Restored archived guard.");
+      } else {
+        setActionMessage({ type: "error", text: `Guard restore failed: ${result.error}` });
+      }
+      setGuardActionId(null);
+    },
+    [fetchGuards, fetchStats, recordActivity, restoreEntity]
+  );
 
   const handleUpdateSite = useCallback(async (siteId: string, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     setSiteActionId(siteId);
+    const previous = sites.find((site) => String(site.id) === siteId) ?? null;
     const dbId = toDbId(siteId);
     const { data, error } = await supabase
       .from("sites")
@@ -523,16 +732,20 @@ export function useDashboardData() {
     if (!error && data) {
       setSites((prev) => prev.map((site) => (String(site.id) === siteId ? { ...site, name: data.name } : site)));
       setActionMessage({ type: "success", text: "Site updated." });
-      await recordActivity("update", "site", siteId, `Renamed site to "${trimmed}"`);
+      await recordActivity("update", "site", siteId, `Renamed site to "${trimmed}"`, {
+        before: previous ? { name: previous.name } : null,
+        after: { name: trimmed },
+      });
     } else if (error) {
       setSitesError(error.message);
       setActionMessage({ type: "error", text: `Site update failed: ${error.message}` });
     }
     setSiteActionId(null);
-  }, [recordActivity]);
+  }, [recordActivity, sites]);
 
   const handleDeleteSite = useCallback(async (siteId: string) => {
     setSiteActionId(siteId);
+    const previous = sites.find((site) => String(site.id) === siteId) ?? null;
     const result = await softDeleteEntity("sites", siteId);
     if (result.ok) {
       setSites((prev) => prev.filter((site) => String(site.id) !== siteId));
@@ -545,14 +758,35 @@ export function useDashboardData() {
         result.mode === "soft" ? "archive" : "delete",
         "site",
         siteId,
-        result.mode === "soft" ? "Soft-deleted site via archived_at." : "Hard-deleted site fallback."
+        result.mode === "soft" ? "Soft-deleted site via archived_at." : "Hard-deleted site fallback.",
+        {
+          before: previous ? { id: previous.id, name: previous.name } : null,
+          after: result.mode === "soft" ? { archived_at: new Date().toISOString() } : null,
+        }
       );
     } else {
       setSitesError(result.error ?? "Unknown error");
       setActionMessage({ type: "error", text: `Site delete failed: ${result.error}` });
     }
     setSiteActionId(null);
-  }, [fetchStats, recordActivity, softDeleteEntity]);
+  }, [fetchStats, recordActivity, sites, softDeleteEntity]);
+
+  const handleRestoreSite = useCallback(
+    async (siteId: string) => {
+      setSiteActionId(siteId);
+      const result = await restoreEntity("sites", siteId);
+      if (result.ok) {
+        await fetchSites();
+        await fetchStats();
+        setActionMessage({ type: "success", text: "Site restored." });
+        await recordActivity("restore", "site", siteId, "Restored archived site.");
+      } else {
+        setActionMessage({ type: "error", text: `Site restore failed: ${result.error}` });
+      }
+      setSiteActionId(null);
+    },
+    [fetchSites, fetchStats, recordActivity, restoreEntity]
+  );
 
   const handleAssignGuard = useCallback(async () => {
     const activeGuardId = selectedGuardId || (guards[0] ? String(guards[0].id) : "");
@@ -593,6 +827,7 @@ export function useDashboardData() {
 
   const handleDeleteShift = useCallback(async (shiftId: string) => {
     setShiftActionId(shiftId);
+    const previous = shifts.find((shift) => String(shift.id) === shiftId) ?? null;
     const result = await softDeleteEntity("shifts", shiftId);
     if (result.ok) {
       setShifts((prev) => prev.filter((shift) => String(shift.id) !== shiftId));
@@ -605,14 +840,37 @@ export function useDashboardData() {
         result.mode === "soft" ? "archive" : "delete",
         "shift",
         shiftId,
-        result.mode === "soft" ? "Soft-deleted shift via archived_at." : "Hard-deleted shift fallback."
+        result.mode === "soft" ? "Soft-deleted shift via archived_at." : "Hard-deleted shift fallback.",
+        {
+          before: previous
+            ? { id: previous.id, guard_id: previous.guard_id, site_id: previous.site_id }
+            : null,
+          after: result.mode === "soft" ? { archived_at: new Date().toISOString() } : null,
+        }
       );
     } else {
       setShiftsError(result.error ?? "Unknown error");
       setActionMessage({ type: "error", text: `Shift delete failed: ${result.error}` });
     }
     setShiftActionId(null);
-  }, [fetchStats, recordActivity, softDeleteEntity]);
+  }, [fetchStats, recordActivity, shifts, softDeleteEntity]);
+
+  const handleRestoreShift = useCallback(
+    async (shiftId: string) => {
+      setShiftActionId(shiftId);
+      const result = await restoreEntity("shifts", shiftId);
+      if (result.ok) {
+        await fetchShifts();
+        await fetchStats();
+        setActionMessage({ type: "success", text: "Shift restored." });
+        await recordActivity("restore", "shift", shiftId, "Restored archived shift.");
+      } else {
+        setActionMessage({ type: "error", text: `Shift restore failed: ${result.error}` });
+      }
+      setShiftActionId(null);
+    },
+    [fetchShifts, fetchStats, recordActivity, restoreEntity]
+  );
 
   const handleReassignShift = useCallback(
     async (shiftId: string, guardIdValue: string, siteIdValue: string) => {
@@ -628,6 +886,7 @@ export function useDashboardData() {
         .select("id, guard_id, site_id")
         .single();
       if (!error && data) {
+        const previous = shifts.find((shift) => String(shift.id) === shiftId) ?? null;
         setShifts((prev) =>
           prev.map((shift) =>
             String(shift.id) === shiftId
@@ -646,7 +905,13 @@ export function useDashboardData() {
           "reassign",
           "shift",
           shiftId,
-          `Reassigned shift to guard ${guardIdValue} and site ${siteIdValue}.`
+          `Reassigned shift to guard ${guardIdValue} and site ${siteIdValue}.`,
+          {
+            before: previous
+              ? { guard_id: previous.guard_id, site_id: previous.site_id }
+              : null,
+            after: { guard_id: guardIdValue, site_id: siteIdValue },
+          }
         );
       } else if (error) {
         setShiftsError(error.message);
@@ -654,7 +919,7 @@ export function useDashboardData() {
       }
       setShiftActionId(null);
     },
-    [guardNameById, siteNameById, recordActivity]
+    [guardNameById, recordActivity, shifts, siteNameById]
   );
 
   const handleCheckIn = useCallback(async () => {
@@ -792,9 +1057,13 @@ export function useDashboardData() {
     statsLoading,
     statsError,
     companies,
+    archivedCompanies,
     guards,
+    archivedGuards,
     sites,
+    archivedSites,
     shifts,
+    archivedShifts,
     checkIns,
     incidents,
     activityLogs,
@@ -805,6 +1074,7 @@ export function useDashboardData() {
     checkInsLoading,
     incidentsLoading,
     activityLogsLoading,
+    archivedLoading,
     companiesError,
     guardsError,
     sitesError,
@@ -812,6 +1082,8 @@ export function useDashboardData() {
     checkInsError,
     incidentsError,
     activityLogsError,
+    archivedError,
+    supportsSoftDelete,
     newCompanyName,
     newGuardName,
     newSiteName,
@@ -847,13 +1119,17 @@ export function useDashboardData() {
     handleAddGuard,
     handleUpdateCompany,
     handleDeleteCompany,
+    handleRestoreCompany,
     handleUpdateGuard,
     handleDeleteGuard,
+    handleRestoreGuard,
     handleAddSite,
     handleUpdateSite,
     handleDeleteSite,
+    handleRestoreSite,
     handleAssignGuard,
     handleDeleteShift,
+    handleRestoreShift,
     handleReassignShift,
     handleCheckIn,
     handleReportIncident,

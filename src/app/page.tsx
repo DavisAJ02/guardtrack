@@ -3,6 +3,7 @@
 import { DashboardShell } from "@/components/dashboard-shell";
 import { canManageCore } from "@/features/auth/roles";
 import { ActivityLogPanel } from "@/features/dashboard/components/activity-log-panel";
+import { ArchivedEntitiesPanel } from "@/features/dashboard/components/archived-entities-panel";
 import { CheckInsSection } from "@/features/dashboard/components/checkins-section";
 import { CompaniesSection } from "@/features/dashboard/components/companies-section";
 import { GuardsSection } from "@/features/dashboard/components/guards-section";
@@ -120,6 +121,25 @@ function DashboardContent({ data }: { data: ReturnType<typeof useDashboardData> 
         logs={data.activityLogs}
         loading={data.activityLogsLoading}
         error={data.activityLogsError}
+      />
+
+      <ArchivedEntitiesPanel
+        supportsSoftDelete={data.supportsSoftDelete}
+        loading={data.archivedLoading}
+        error={data.archivedError}
+        canManage={canManage}
+        companies={data.archivedCompanies}
+        guards={data.archivedGuards}
+        sites={data.archivedSites}
+        shifts={data.archivedShifts}
+        companyActionId={data.companyActionId}
+        guardActionId={data.guardActionId}
+        siteActionId={data.siteActionId}
+        shiftActionId={data.shiftActionId}
+        onRestoreCompany={data.handleRestoreCompany}
+        onRestoreGuard={data.handleRestoreGuard}
+        onRestoreSite={data.handleRestoreSite}
+        onRestoreShift={data.handleRestoreShift}
       />
 
       {data.actionMessage ? (
