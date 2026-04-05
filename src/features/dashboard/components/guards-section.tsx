@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Company, Guard } from "@/features/dashboard/types";
 import { getGuardCompanyName } from "@/features/dashboard/utils";
-import { Modal, Panel, StateText } from "@/features/dashboard/components/ui";
+import { ConfirmActionButton, Modal, Panel, StateText } from "@/features/dashboard/components/ui";
 
 type GuardsSectionProps = {
   guards: Guard[];
@@ -115,21 +115,13 @@ export function GuardsSection({
                     >
                       Edit
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const confirmed = window.confirm(
-                          "Delete this guard? This can fail if related shifts/check-ins/incidents exist."
-                        );
-                        if (confirmed) {
-                          void onDeleteGuard(String(guard.id));
-                        }
-                      }}
+                    <ConfirmActionButton
+                      label="Delete"
+                      title="Delete Guard"
+                      message="Delete this guard? This can fail if related shifts/check-ins/incidents exist."
                       disabled={guardActionId === String(guard.id)}
-                      className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Delete
-                    </button>
+                      onConfirm={() => onDeleteGuard(String(guard.id))}
+                    />
                   </div>
                 ) : null}
               </li>

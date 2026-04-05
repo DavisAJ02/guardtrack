@@ -27,6 +27,10 @@ export function useDashboardData() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [realtimeStatus, setRealtimeStatus] = useState<"connecting" | "connected" | "error">(
+    "connecting"
+  );
+  const [lastRealtimeSyncAt, setLastRealtimeSyncAt] = useState<string | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS);
@@ -487,6 +491,7 @@ export function useDashboardData() {
       fetchIncidents(),
       fetchActivityLogs(),
     ]);
+    setLastRealtimeSyncAt(new Date().toISOString());
     setArchivedLoading(false);
   }, [fetchStats, fetchCompanies, fetchGuards, fetchSites, fetchShifts, fetchCheckIns, fetchIncidents, fetchActivityLogs]);
 
@@ -1045,7 +1050,15 @@ export function useDashboardData() {
       .on("postgres_changes", { event: "*", schema: "public", table: "shifts" }, scheduleRealtimeRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "checkins" }, scheduleRealtimeRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "incidents" }, scheduleRealtimeRefresh)
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setRealtimeStatus("connected");
+          return;
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          setRealtimeStatus("error");
+        }
+      });
     return () => {
       if (refreshTimeout) clearTimeout(refreshTimeout);
       void supabase.removeChannel(channel);
@@ -1135,5 +1148,7 @@ export function useDashboardData() {
     handleReportIncident,
     refreshAll,
     clearActionMessage: () => setActionMessage(null),
+    realtimeStatus,
+    lastRealtimeSyncAt,
   };
 }

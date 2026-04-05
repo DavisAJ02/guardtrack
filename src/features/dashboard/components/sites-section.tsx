@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Company, Site } from "@/features/dashboard/types";
 import { getSiteCompanyName } from "@/features/dashboard/utils";
-import { Modal, Panel, StateText } from "@/features/dashboard/components/ui";
+import { ConfirmActionButton, Modal, Panel, StateText } from "@/features/dashboard/components/ui";
 
 type SitesSectionProps = {
   sites: Site[];
@@ -113,21 +113,13 @@ export function SitesSection({
                     >
                       Edit
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const confirmed = window.confirm(
-                          "Delete this site? This can fail if related shifts/check-ins/incidents exist."
-                        );
-                        if (confirmed) {
-                          void onDeleteSite(String(site.id));
-                        }
-                      }}
+                    <ConfirmActionButton
+                      label="Delete"
+                      title="Delete Site"
+                      message="Delete this site? This can fail if related shifts/check-ins/incidents exist."
                       disabled={siteActionId === String(site.id)}
-                      className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Delete
-                    </button>
+                      onConfirm={() => onDeleteSite(String(site.id))}
+                    />
                   </div>
                 ) : null}
               </li>

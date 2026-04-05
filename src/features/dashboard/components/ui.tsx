@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useState } from "react";
 
 export function Panel({
   title,
@@ -67,5 +68,69 @@ export function Modal({
         {children}
       </div>
     </div>
+  );
+}
+
+export function ConfirmActionButton({
+  label,
+  title,
+  message,
+  confirmLabel = "Confirm",
+  disabled = false,
+  onConfirm,
+  tone = "danger",
+}: {
+  label: string;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  disabled?: boolean;
+  onConfirm: () => Promise<void> | void;
+  tone?: "danger" | "neutral";
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        disabled={disabled}
+        className={
+          tone === "danger"
+            ? "rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+            : "rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+        }
+      >
+        {label}
+      </button>
+
+      <Modal open={open} title={title} onClose={() => setOpen(false)}>
+        <p className="text-sm text-slate-700">{message}</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              await onConfirm();
+              setOpen(false);
+            }}
+            className={
+              tone === "danger"
+                ? "rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500"
+                : "rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            }
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </Modal>
+    </>
   );
 }

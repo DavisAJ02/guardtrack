@@ -8,6 +8,7 @@ import { CheckInsSection } from "@/features/dashboard/components/checkins-sectio
 import { CompaniesSection } from "@/features/dashboard/components/companies-section";
 import { GuardsSection } from "@/features/dashboard/components/guards-section";
 import { IncidentsSection } from "@/features/dashboard/components/incidents-section";
+import { RealtimeHealthPanel } from "@/features/dashboard/components/realtime-health-panel";
 import { ShiftsSection } from "@/features/dashboard/components/shifts-section";
 import { SitesSection } from "@/features/dashboard/components/sites-section";
 import { StatsCards } from "@/features/dashboard/components/stats-cards";
@@ -22,6 +23,10 @@ function DashboardContent({ data }: { data: ReturnType<typeof useDashboardData> 
   return (
     <>
       <StatsCards stats={data.stats} loading={data.statsLoading} error={data.statsError} />
+      <RealtimeHealthPanel
+        status={data.realtimeStatus}
+        lastSyncedAt={data.lastRealtimeSyncAt}
+      />
 
       <CompaniesSection
         companies={data.companies}

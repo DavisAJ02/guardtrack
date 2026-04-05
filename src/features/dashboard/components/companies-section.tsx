@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Company } from "@/features/dashboard/types";
-import { Modal, Panel, StateText } from "@/features/dashboard/components/ui";
+import { ConfirmActionButton, Modal, Panel, StateText } from "@/features/dashboard/components/ui";
 
 type CompaniesSectionProps = {
   companies: Company[];
@@ -87,21 +87,13 @@ export function CompaniesSection({
                     >
                       Edit
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const confirmed = window.confirm(
-                          "Delete this company? This can fail if related guards/sites exist."
-                        );
-                        if (confirmed) {
-                          void onDeleteCompany(String(company.id));
-                        }
-                      }}
+                    <ConfirmActionButton
+                      label="Delete"
+                      title="Delete Company"
+                      message="Delete this company? This can fail if related guards/sites exist."
                       disabled={companyActionId === String(company.id)}
-                      className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Delete
-                    </button>
+                      onConfirm={() => onDeleteCompany(String(company.id))}
+                    />
                   </div>
                 ) : null}
               </li>

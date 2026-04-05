@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Guard, Shift, Site } from "@/features/dashboard/types";
 import { getShiftGuardName, getShiftSiteName } from "@/features/dashboard/utils";
-import { Modal, Panel, StateText } from "@/features/dashboard/components/ui";
+import { ConfirmActionButton, Modal, Panel, StateText } from "@/features/dashboard/components/ui";
 
 type ShiftsSectionProps = {
   shifts: Shift[];
@@ -123,19 +123,13 @@ export function ShiftsSection({
                     >
                       Reassign
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const confirmed = window.confirm("Delete this shift assignment?");
-                        if (confirmed) {
-                          void onDeleteShift(String(shift.id));
-                        }
-                      }}
+                    <ConfirmActionButton
+                      label="Delete"
+                      title="Delete Shift"
+                      message="Delete this shift assignment?"
                       disabled={shiftActionId === String(shift.id)}
-                      className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Delete
-                    </button>
+                      onConfirm={() => onDeleteShift(String(shift.id))}
+                    />
                   </div>
                 ) : null}
               </li>
