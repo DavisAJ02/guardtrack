@@ -13,6 +13,9 @@ type GuardsSectionProps = {
   setNewGuardName: (value: string) => void;
   setSelectedCompanyId: (value: string) => void;
   onAddGuard: () => Promise<void>;
+  onUpdateGuard: (guardId: string, name: string) => Promise<void>;
+  onDeleteGuard: (guardId: string) => Promise<void>;
+  guardActionId: string | null;
 };
 
 export function GuardsSection({
@@ -26,6 +29,9 @@ export function GuardsSection({
   setNewGuardName,
   setSelectedCompanyId,
   onAddGuard,
+  onUpdateGuard,
+  onDeleteGuard,
+  guardActionId,
 }: GuardsSectionProps) {
   return (
     <Panel title="Guard Management" description="Add and review security personnel">
@@ -70,11 +76,49 @@ export function GuardsSection({
         {!loading && !error && guards.length > 0 ? (
           <ul className="space-y-2">
             {guards.map((guard) => (
-              <li key={String(guard.id)} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-sm font-medium">
-                  {guard.name ? String(guard.name) : `Guard #${guard.id}`}
-                </p>
-                <p className="text-xs text-slate-600">{getGuardCompanyName(guard)}</p>
+              <li
+                key={String(guard.id)}
+                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">
+                    {guard.name ? String(guard.name) : `Guard #${guard.id}`}
+                  </p>
+                  <p className="text-xs text-slate-600">{getGuardCompanyName(guard)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextName = window.prompt(
+                        "Update guard name",
+                        guard.name ? String(guard.name) : ""
+                      );
+                      if (nextName && nextName.trim()) {
+                        void onUpdateGuard(String(guard.id), nextName);
+                      }
+                    }}
+                    disabled={guardActionId === String(guard.id)}
+                    className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const confirmed = window.confirm(
+                        "Delete this guard? This can fail if related shifts/check-ins/incidents exist."
+                      );
+                      if (confirmed) {
+                        void onDeleteGuard(String(guard.id));
+                      }
+                    }}
+                    disabled={guardActionId === String(guard.id)}
+                    className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Delete
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

@@ -14,6 +14,8 @@ type ShiftsSectionProps = {
   setSelectedGuardId: (value: string) => void;
   setSelectedShiftSiteId: (value: string) => void;
   onAssignGuard: () => Promise<void>;
+  onDeleteShift: (shiftId: string) => Promise<void>;
+  shiftActionId: string | null;
 };
 
 export function ShiftsSection({
@@ -28,6 +30,8 @@ export function ShiftsSection({
   setSelectedGuardId,
   setSelectedShiftSiteId,
   onAssignGuard,
+  onDeleteShift,
+  shiftActionId,
 }: ShiftsSectionProps) {
   return (
     <Panel title="Shift Assignment" description="Assign guards to active site shifts">
@@ -77,9 +81,27 @@ export function ShiftsSection({
         {!loading && !error && shifts.length > 0 ? (
           <ul className="space-y-2">
             {shifts.map((shift) => (
-              <li key={String(shift.id)} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-sm font-medium">{getShiftGuardName(shift)}</p>
-                <p className="text-xs text-slate-600">{getShiftSiteName(shift)}</p>
+              <li
+                key={String(shift.id)}
+                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">{getShiftGuardName(shift)}</p>
+                  <p className="text-xs text-slate-600">{getShiftSiteName(shift)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const confirmed = window.confirm("Delete this shift assignment?");
+                    if (confirmed) {
+                      void onDeleteShift(String(shift.id));
+                    }
+                  }}
+                  disabled={shiftActionId === String(shift.id)}
+                  className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Delete
+                </button>
               </li>
             ))}
           </ul>

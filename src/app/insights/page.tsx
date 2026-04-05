@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { TrendBars } from "@/features/dashboard/components/trend-bars";
 import { Panel, StateText } from "@/features/dashboard/components/ui";
 import { useDashboardData } from "@/features/dashboard/useDashboardData";
 import {
@@ -57,6 +58,21 @@ export default function InsightsPage() {
 
   const checkInTrend = aggregateCountByDay(filteredCheckIns).slice(-7);
   const incidentTrend = aggregateCountByDay(filteredIncidents).slice(-7);
+  const incidentsBySite = useMemo(() => {
+    const bySite = new Map<string, number>();
+    for (const incident of filteredIncidents) {
+      const key = String(incident.site_id ?? "unknown");
+      bySite.set(key, (bySite.get(key) ?? 0) + 1);
+    }
+    return [...bySite.entries()]
+      .map(([siteId, value]) => ({
+        label:
+          data.sites.find((site) => String(site.id) === siteId)?.name ?? `Site #${siteId}`,
+        value,
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [filteredIncidents, data.sites]);
 
   return (
     <DashboardShell
@@ -130,30 +146,18 @@ export default function InsightsPage() {
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Panel title="Check-in Trend (7 days)" description="Daily check-in totals">
-          {checkInTrend.length === 0 ? <StateText>No check-in trend data in this range.</StateText> : null}
-          <ul className="space-y-2">
-            {checkInTrend.map((entry) => (
-              <li key={entry.label} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="text-sm text-slate-700">{entry.label}</span>
-                <span className="text-sm font-semibold">{entry.value}</span>
-              </li>
-            ))}
-          </ul>
+          <TrendBars points={checkInTrend} emptyText="No check-in trend data in this range." />
         </Panel>
 
         <Panel title="Incident Trend (7 days)" description="Daily incident totals and risk signal">
-          {incidentTrend.length === 0 ? <StateText>No incident trend data in this range.</StateText> : null}
-          <ul className="space-y-2">
-            {incidentTrend.map((entry) => (
-              <li key={entry.label} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="text-sm text-slate-700">{entry.label}</span>
-                <span className="text-sm font-semibold">{entry.value}</span>
-              </li>
-            ))}
-          </ul>
+          <TrendBars points={incidentTrend} emptyText="No incident trend data in this range." />
           <p className="mt-3 text-xs text-slate-600">Incident-to-check-in ratio: {incidentRate(filteredIncidents, filteredCheckIns)}%</p>
         </Panel>
       </div>
+
+      <Panel title="Incidents by Site" description="Top incident-heavy locations in active filter set">
+        <TrendBars points={incidentsBySite} emptyText="No incidents found for site distribution." />
+      </Panel>
     </DashboardShell>
   );
 }

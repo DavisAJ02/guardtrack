@@ -28,6 +28,9 @@ export default function Home() {
         newCompanyName={data.newCompanyName}
         setNewCompanyName={data.setNewCompanyName}
         onAddCompany={data.handleAddCompany}
+        onUpdateCompany={data.handleUpdateCompany}
+        onDeleteCompany={data.handleDeleteCompany}
+        companyActionId={data.companyActionId}
       />
 
       <GuardsSection
@@ -41,6 +44,9 @@ export default function Home() {
         setNewGuardName={data.setNewGuardName}
         setSelectedCompanyId={data.setSelectedCompanyId}
         onAddGuard={data.handleAddGuard}
+        onUpdateGuard={data.handleUpdateGuard}
+        onDeleteGuard={data.handleDeleteGuard}
+        guardActionId={data.guardActionId}
       />
 
       <SitesSection
@@ -54,6 +60,9 @@ export default function Home() {
         setNewSiteName={data.setNewSiteName}
         setSelectedSiteCompanyId={data.setSelectedSiteCompanyId}
         onAddSite={data.handleAddSite}
+        onUpdateSite={data.handleUpdateSite}
+        onDeleteSite={data.handleDeleteSite}
+        siteActionId={data.siteActionId}
       />
 
       <ShiftsSection
@@ -68,6 +77,8 @@ export default function Home() {
         setSelectedGuardId={data.setSelectedGuardId}
         setSelectedShiftSiteId={data.setSelectedShiftSiteId}
         onAssignGuard={data.handleAssignGuard}
+        onDeleteShift={data.handleDeleteShift}
+        shiftActionId={data.shiftActionId}
       />
 
       <CheckInsSection

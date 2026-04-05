@@ -9,6 +9,9 @@ type CompaniesSectionProps = {
   newCompanyName: string;
   setNewCompanyName: (value: string) => void;
   onAddCompany: () => Promise<void>;
+  onUpdateCompany: (companyId: string, name: string) => Promise<void>;
+  onDeleteCompany: (companyId: string) => Promise<void>;
+  companyActionId: string | null;
 };
 
 export function CompaniesSection({
@@ -19,6 +22,9 @@ export function CompaniesSection({
   newCompanyName,
   setNewCompanyName,
   onAddCompany,
+  onUpdateCompany,
+  onDeleteCompany,
+  companyActionId,
 }: CompaniesSectionProps) {
   return (
     <Panel title="Companies" description="Manage clients and business entities">
@@ -51,9 +57,42 @@ export function CompaniesSection({
             {companies.map((company) => (
               <li
                 key={String(company.id)}
-                className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
               >
-                {company.name ? String(company.name) : `Company #${company.id}`}
+                <span>{company.name ? String(company.name) : `Company #${company.id}`}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextName = window.prompt(
+                        "Update company name",
+                        company.name ? String(company.name) : ""
+                      );
+                      if (nextName && nextName.trim()) {
+                        void onUpdateCompany(String(company.id), nextName);
+                      }
+                    }}
+                    disabled={companyActionId === String(company.id)}
+                    className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const confirmed = window.confirm(
+                        "Delete this company? This can fail if related guards/sites exist."
+                      );
+                      if (confirmed) {
+                        void onDeleteCompany(String(company.id));
+                      }
+                    }}
+                    disabled={companyActionId === String(company.id)}
+                    className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Delete
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

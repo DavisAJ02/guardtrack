@@ -45,6 +45,10 @@ export function useDashboardData() {
   const [assigningShift, setAssigningShift] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
   const [reportingIncident, setReportingIncident] = useState(false);
+  const [companyActionId, setCompanyActionId] = useState<string | null>(null);
+  const [guardActionId, setGuardActionId] = useState<string | null>(null);
+  const [siteActionId, setSiteActionId] = useState<string | null>(null);
+  const [shiftActionId, setShiftActionId] = useState<string | null>(null);
 
   const [newCompanyName, setNewCompanyName] = useState("");
   const [newGuardName, setNewGuardName] = useState("");
@@ -268,6 +272,43 @@ export function useDashboardData() {
     setAddingGuard(false);
   }, [newGuardName, selectedCompanyId, companies, companyNameById, fetchStats]);
 
+  const handleUpdateCompany = useCallback(
+    async (companyId: string, name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      setCompanyActionId(companyId);
+      const dbId = toDbId(companyId);
+      const { data, error } = await supabase
+        .from("companies")
+        .update({ name: trimmed })
+        .eq("id", dbId)
+        .select("id, name")
+        .single();
+      if (!error && data) {
+        setCompanies((prev) =>
+          prev.map((company) => (String(company.id) === companyId ? { ...company, name: data.name } : company))
+        );
+      } else if (error) {
+        setCompaniesError(error.message);
+      }
+      setCompanyActionId(null);
+    },
+    []
+  );
+
+  const handleDeleteCompany = useCallback(async (companyId: string) => {
+    setCompanyActionId(companyId);
+    const dbId = toDbId(companyId);
+    const { error } = await supabase.from("companies").delete().eq("id", dbId);
+    if (!error) {
+      setCompanies((prev) => prev.filter((company) => String(company.id) !== companyId));
+      await fetchStats();
+    } else {
+      setCompaniesError(error.message);
+    }
+    setCompanyActionId(null);
+  }, [fetchStats]);
+
   const handleAddSite = useCallback(async () => {
     const name = newSiteName.trim();
     const activeCompanyId =
@@ -291,6 +332,72 @@ export function useDashboardData() {
     }
     setAddingSite(false);
   }, [newSiteName, selectedSiteCompanyId, companies, companyNameById, fetchStats]);
+
+  const handleUpdateGuard = useCallback(async (guardId: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setGuardActionId(guardId);
+    const dbId = toDbId(guardId);
+    const { data, error } = await supabase
+      .from("users")
+      .update({ name: trimmed })
+      .eq("id", dbId)
+      .select("id, name")
+      .single();
+    if (!error && data) {
+      setGuards((prev) =>
+        prev.map((guard) => (String(guard.id) === guardId ? { ...guard, name: data.name } : guard))
+      );
+    } else if (error) {
+      setGuardsError(error.message);
+    }
+    setGuardActionId(null);
+  }, []);
+
+  const handleDeleteGuard = useCallback(async (guardId: string) => {
+    setGuardActionId(guardId);
+    const dbId = toDbId(guardId);
+    const { error } = await supabase.from("users").delete().eq("id", dbId);
+    if (!error) {
+      setGuards((prev) => prev.filter((guard) => String(guard.id) !== guardId));
+      await fetchStats();
+    } else {
+      setGuardsError(error.message);
+    }
+    setGuardActionId(null);
+  }, [fetchStats]);
+
+  const handleUpdateSite = useCallback(async (siteId: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setSiteActionId(siteId);
+    const dbId = toDbId(siteId);
+    const { data, error } = await supabase
+      .from("sites")
+      .update({ name: trimmed })
+      .eq("id", dbId)
+      .select("id, name")
+      .single();
+    if (!error && data) {
+      setSites((prev) => prev.map((site) => (String(site.id) === siteId ? { ...site, name: data.name } : site)));
+    } else if (error) {
+      setSitesError(error.message);
+    }
+    setSiteActionId(null);
+  }, []);
+
+  const handleDeleteSite = useCallback(async (siteId: string) => {
+    setSiteActionId(siteId);
+    const dbId = toDbId(siteId);
+    const { error } = await supabase.from("sites").delete().eq("id", dbId);
+    if (!error) {
+      setSites((prev) => prev.filter((site) => String(site.id) !== siteId));
+      await fetchStats();
+    } else {
+      setSitesError(error.message);
+    }
+    setSiteActionId(null);
+  }, [fetchStats]);
 
   const handleAssignGuard = useCallback(async () => {
     const activeGuardId = selectedGuardId || (guards[0] ? String(guards[0].id) : "");
@@ -318,6 +425,19 @@ export function useDashboardData() {
     }
     setAssigningShift(false);
   }, [selectedGuardId, selectedShiftSiteId, guards, sites, guardNameById, siteNameById, fetchStats]);
+
+  const handleDeleteShift = useCallback(async (shiftId: string) => {
+    setShiftActionId(shiftId);
+    const dbId = toDbId(shiftId);
+    const { error } = await supabase.from("shifts").delete().eq("id", dbId);
+    if (!error) {
+      setShifts((prev) => prev.filter((shift) => String(shift.id) !== shiftId));
+      await fetchStats();
+    } else {
+      setShiftsError(error.message);
+    }
+    setShiftActionId(null);
+  }, [fetchStats]);
 
   const handleCheckIn = useCallback(async () => {
     const activeGuardId = selectedGuardId || (guards[0] ? String(guards[0].id) : "");
@@ -475,6 +595,10 @@ export function useDashboardData() {
     assigningShift,
     checkingIn,
     reportingIncident,
+    companyActionId,
+    guardActionId,
+    siteActionId,
+    shiftActionId,
     setNewCompanyName,
     setNewGuardName,
     setNewSiteName,
@@ -487,8 +611,15 @@ export function useDashboardData() {
     setIncidentDescription,
     handleAddCompany,
     handleAddGuard,
+    handleUpdateCompany,
+    handleDeleteCompany,
+    handleUpdateGuard,
+    handleDeleteGuard,
     handleAddSite,
+    handleUpdateSite,
+    handleDeleteSite,
     handleAssignGuard,
+    handleDeleteShift,
     handleCheckIn,
     handleReportIncident,
     refreshAll,

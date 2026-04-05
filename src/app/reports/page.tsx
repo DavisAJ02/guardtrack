@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { Panel, StateText } from "@/features/dashboard/components/ui";
@@ -25,6 +25,8 @@ const downloadCsv = (filename: string, content: string) => {
   URL.revokeObjectURL(link.href);
 };
 
+const PRESET_KEY = "guardtrack-reports-preset-v1";
+
 function ReportsPageContent() {
   const data = useDashboardData();
   const pathname = usePathname();
@@ -38,12 +40,52 @@ function ReportsPageContent() {
   const search = searchParams.get("search") ?? "";
   const sort = searchParams.get("sort") ?? "created_at";
   const direction = searchParams.get("direction") ?? "desc";
+  const [savedPreset, setSavedPreset] = useState<string | null>(
+    typeof window === "undefined" ? null : localStorage.getItem(PRESET_KEY)
+  );
 
   const setParam = (name: string, value: string) => {
     const next = new URLSearchParams(searchParams.toString());
     if (!value) next.delete(name);
     else next.set(name, value);
     router.replace(`${pathname}?${next.toString()}`);
+  };
+
+  const setParams = (updates: Record<string, string>) => {
+    const next = new URLSearchParams(searchParams.toString());
+    for (const [name, value] of Object.entries(updates)) {
+      if (!value) next.delete(name);
+      else next.set(name, value);
+    }
+    router.replace(`${pathname}?${next.toString()}`);
+  };
+
+  const applyPreset = (preset: "today" | "last7" | "incidents") => {
+    const now = new Date();
+    const toDate = now.toISOString().slice(0, 10);
+    if (preset === "today") {
+      setParams({ from: toDate, to: toDate });
+      return;
+    }
+    if (preset === "last7") {
+      const fromDate = new Date(now);
+      fromDate.setDate(now.getDate() - 6);
+      setParams({ from: fromDate.toISOString().slice(0, 10), to: toDate });
+      return;
+    }
+    setParams({ search: "incident", sort: "created_at", direction: "desc" });
+  };
+
+  const saveCurrentPreset = () => {
+    const payload = searchParams.toString();
+    localStorage.setItem(PRESET_KEY, payload);
+    setSavedPreset(payload);
+  };
+
+  const loadSavedPreset = () => {
+    const payload = localStorage.getItem(PRESET_KEY);
+    if (!payload) return;
+    router.replace(`${pathname}?${payload}`);
   };
 
   const siteIdsForCompany = useMemo(() => {
@@ -103,6 +145,44 @@ function ReportsPageContent() {
       subtitle="Filter, search, sort, and export check-ins and incidents for operations reporting."
     >
       <Panel title="Report Filters" description="Filters persist in URL query parameters">
+        <div className="mb-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => applyPreset("today")}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            onClick={() => applyPreset("last7")}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Last 7 Days
+          </button>
+          <button
+            type="button"
+            onClick={() => applyPreset("incidents")}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Incident Focus
+          </button>
+          <button
+            type="button"
+            onClick={saveCurrentPreset}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Save Current Preset
+          </button>
+          <button
+            type="button"
+            onClick={loadSavedPreset}
+            disabled={!savedPreset}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Load Saved Preset
+          </button>
+        </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
           <label className="text-sm">
             <span className="mb-1 block text-slate-600">From</span>
