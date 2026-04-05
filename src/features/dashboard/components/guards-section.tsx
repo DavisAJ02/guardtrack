@@ -1,6 +1,7 @@
+import { useState } from "react";
 import type { Company, Guard } from "@/features/dashboard/types";
 import { getGuardCompanyName } from "@/features/dashboard/utils";
-import { Panel, StateText } from "@/features/dashboard/components/ui";
+import { Modal, Panel, StateText } from "@/features/dashboard/components/ui";
 
 type GuardsSectionProps = {
   guards: Guard[];
@@ -35,6 +36,19 @@ export function GuardsSection({
   guardActionId,
   canManage,
 }: GuardsSectionProps) {
+  const [editingGuardId, setEditingGuardId] = useState<string | null>(null);
+  const [editingGuardName, setEditingGuardName] = useState("");
+
+  const openEditModal = (guard: Guard) => {
+    setEditingGuardId(String(guard.id));
+    setEditingGuardName(guard.name ? String(guard.name) : "");
+  };
+
+  const closeEditModal = () => {
+    setEditingGuardId(null);
+    setEditingGuardName("");
+  };
+
   return (
     <Panel title="Guard Management" description="Add and review security personnel">
       <div className="flex flex-col gap-3">
@@ -95,15 +109,7 @@ export function GuardsSection({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        const nextName = window.prompt(
-                          "Update guard name",
-                          guard.name ? String(guard.name) : ""
-                        );
-                        if (nextName && nextName.trim()) {
-                          void onUpdateGuard(String(guard.id), nextName);
-                        }
-                      }}
+                      onClick={() => openEditModal(guard)}
                       disabled={guardActionId === String(guard.id)}
                       className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -131,6 +137,40 @@ export function GuardsSection({
           </ul>
         ) : null}
       </div>
+
+      <Modal open={Boolean(editingGuardId)} title="Edit Guard" onClose={closeEditModal}>
+        <div className="space-y-3">
+          <label className="block text-sm">
+            <span className="mb-1 block text-slate-600">Guard name</span>
+            <input
+              type="text"
+              value={editingGuardName}
+              onChange={(event) => setEditingGuardName(event.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeEditModal}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!editingGuardId || !editingGuardName.trim()) return;
+                void onUpdateGuard(editingGuardId, editingGuardName);
+                closeEditModal();
+              }}
+              className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </Modal>
     </Panel>
   );
 }

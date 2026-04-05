@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type {
+  ActivityLog,
   CheckIn,
   Company,
   DashboardStats,
@@ -36,6 +37,7 @@ export function useDashboardData() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [guardsLoading, setGuardsLoading] = useState(true);
@@ -43,6 +45,7 @@ export function useDashboardData() {
   const [shiftsLoading, setShiftsLoading] = useState(true);
   const [checkInsLoading, setCheckInsLoading] = useState(true);
   const [incidentsLoading, setIncidentsLoading] = useState(true);
+  const [activityLogsLoading, setActivityLogsLoading] = useState(true);
   const [addingCompany, setAddingCompany] = useState(false);
   const [addingGuard, setAddingGuard] = useState(false);
   const [addingSite, setAddingSite] = useState(false);
@@ -70,6 +73,7 @@ export function useDashboardData() {
   const [shiftsError, setShiftsError] = useState<string | null>(null);
   const [checkInsError, setCheckInsError] = useState<string | null>(null);
   const [incidentsError, setIncidentsError] = useState<string | null>(null);
+  const [activityLogsError, setActivityLogsError] = useState<string | null>(null);
 
   const companyNameById = useMemo(
     () =>
@@ -91,7 +95,11 @@ export function useDashboardData() {
 
   const fetchCompanies = useCallback(async () => {
     setCompaniesLoading(true);
-    const { data, error } = await supabase.from("companies").select("*");
+    let response = await supabase.from("companies").select("*").is("archived_at", null);
+    if (response.error && response.error.message.includes("archived_at")) {
+      response = await supabase.from("companies").select("*");
+    }
+    const { data, error } = response;
     if (error) {
       setCompaniesError(error.message);
       setCompanies([]);
@@ -104,7 +112,14 @@ export function useDashboardData() {
 
   const fetchGuards = useCallback(async () => {
     setGuardsLoading(true);
-    const { data, error } = await supabase.from("users").select("id, name, company_id, companies(name)");
+    let response = await supabase
+      .from("users")
+      .select("id, name, company_id, companies(name)")
+      .is("archived_at", null);
+    if (response.error && response.error.message.includes("archived_at")) {
+      response = await supabase.from("users").select("id, name, company_id, companies(name)");
+    }
+    const { data, error } = response;
     if (error) {
       setGuardsError(error.message);
       setGuards([]);
@@ -117,7 +132,14 @@ export function useDashboardData() {
 
   const fetchSites = useCallback(async () => {
     setSitesLoading(true);
-    const { data, error } = await supabase.from("sites").select("id, name, company_id, companies(name)");
+    let response = await supabase
+      .from("sites")
+      .select("id, name, company_id, companies(name)")
+      .is("archived_at", null);
+    if (response.error && response.error.message.includes("archived_at")) {
+      response = await supabase.from("sites").select("id, name, company_id, companies(name)");
+    }
+    const { data, error } = response;
     if (error) {
       setSitesError(error.message);
       setSites([]);
@@ -130,13 +152,26 @@ export function useDashboardData() {
 
   const fetchShifts = useCallback(async () => {
     setShiftsLoading(true);
-    const { data, error } = await supabase.from("shifts").select(`
+    let response = await supabase
+      .from("shifts")
+      .select(`
+        id,
+        guard_id,
+        site_id,
+        users(name),
+        sites(name)
+      `)
+      .is("archived_at", null);
+    if (response.error && response.error.message.includes("archived_at")) {
+      response = await supabase.from("shifts").select(`
         id,
         guard_id,
         site_id,
         users(name),
         sites(name)
       `);
+    }
+    const { data, error } = response;
     if (error) {
       setShiftsError(error.message);
       setShifts([]);
@@ -178,6 +213,77 @@ export function useDashboardData() {
     }
     setIncidentsLoading(false);
   }, []);
+
+  const fetchActivityLogs = useCallback(async () => {
+    setActivityLogsLoading(true);
+    const { data, error } = await supabase
+      .from("activity_logs")
+      .select("id, action, entity, entity_id, details, created_at")
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (error) {
+      if (error.message.includes("activity_logs")) {
+        // Keep app usable even before DB migration creates activity_logs.
+        setActivityLogsError(null);
+      } else {
+        setActivityLogsError(error.message);
+      }
+    } else {
+      setActivityLogsError(null);
+      setActivityLogs((data as ActivityLog[]) ?? []);
+    }
+    setActivityLogsLoading(false);
+  }, []);
+
+  const recordActivity = useCallback(
+    async (action: string, entity: string, entityId: string, details: string) => {
+      const optimistic: ActivityLog = {
+        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        action,
+        entity,
+        entity_id: entityId,
+        details,
+        created_at: new Date().toISOString(),
+      };
+      setActivityLogs((prev) => [optimistic, ...prev].slice(0, 30));
+      const { error } = await supabase.from("activity_logs").insert([
+        {
+          action,
+          entity,
+          entity_id: entityId,
+          details,
+        },
+      ]);
+      if (!error) {
+        await fetchActivityLogs();
+      }
+    },
+    [fetchActivityLogs]
+  );
+
+  const softDeleteEntity = useCallback(
+    async (table: "companies" | "users" | "sites" | "shifts", itemId: string) => {
+      const dbId = toDbId(itemId);
+      const softDeleteRes = await supabase
+        .from(table)
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", dbId)
+        .select("id")
+        .single();
+      if (!softDeleteRes.error) {
+        return { ok: true, mode: "soft" as const };
+      }
+      if (softDeleteRes.error.message.includes("archived_at")) {
+        const hardDeleteRes = await supabase.from(table).delete().eq("id", dbId);
+        if (!hardDeleteRes.error) {
+          return { ok: true, mode: "hard" as const };
+        }
+        return { ok: false, error: hardDeleteRes.error.message };
+      }
+      return { ok: false, error: softDeleteRes.error.message };
+    },
+    []
+  );
 
   const fetchStats = useCallback(async () => {
     setStatsLoading(true);
@@ -224,8 +330,9 @@ export function useDashboardData() {
       fetchShifts(),
       fetchCheckIns(),
       fetchIncidents(),
+      fetchActivityLogs(),
     ]);
-  }, [fetchStats, fetchCompanies, fetchGuards, fetchSites, fetchShifts, fetchCheckIns, fetchIncidents]);
+  }, [fetchStats, fetchCompanies, fetchGuards, fetchSites, fetchShifts, fetchCheckIns, fetchIncidents, fetchActivityLogs]);
 
   const handleAddCompany = useCallback(async () => {
     const name = newCompanyName.trim();
@@ -241,9 +348,10 @@ export function useDashboardData() {
       setCompaniesError(null);
       setNewCompanyName("");
       await fetchStats();
+      await recordActivity("create", "company", String(data.id), `Created company "${data.name ?? ""}"`);
     }
     setAddingCompany(false);
-  }, [newCompanyName, fetchStats]);
+  }, [newCompanyName, fetchStats, recordActivity]);
 
   const resolvedSelectedCompanyId = selectedCompanyId || (companies[0] ? String(companies[0].id) : "");
   const resolvedSelectedSiteCompanyId =
@@ -274,9 +382,10 @@ export function useDashboardData() {
       setGuardsError(null);
       setNewGuardName("");
       await fetchStats();
+      await recordActivity("create", "guard", String(data.id), `Created guard "${data.name ?? ""}"`);
     }
     setAddingGuard(false);
-  }, [newGuardName, selectedCompanyId, companies, companyNameById, fetchStats]);
+  }, [newGuardName, selectedCompanyId, companies, companyNameById, fetchStats, recordActivity]);
 
   const handleUpdateCompany = useCallback(
     async (companyId: string, name: string) => {
@@ -295,29 +404,38 @@ export function useDashboardData() {
           prev.map((company) => (String(company.id) === companyId ? { ...company, name: data.name } : company))
         );
       setActionMessage({ type: "success", text: "Company updated." });
+      await recordActivity("update", "company", companyId, `Renamed company to "${trimmed}"`);
       } else if (error) {
         setCompaniesError(error.message);
       setActionMessage({ type: "error", text: `Company update failed: ${error.message}` });
       }
       setCompanyActionId(null);
     },
-    []
+    [recordActivity]
   );
 
   const handleDeleteCompany = useCallback(async (companyId: string) => {
     setCompanyActionId(companyId);
-    const dbId = toDbId(companyId);
-    const { error } = await supabase.from("companies").delete().eq("id", dbId);
-    if (!error) {
+    const result = await softDeleteEntity("companies", companyId);
+    if (result.ok) {
       setCompanies((prev) => prev.filter((company) => String(company.id) !== companyId));
       await fetchStats();
-      setActionMessage({ type: "success", text: "Company deleted." });
+      setActionMessage({
+        type: "success",
+        text: result.mode === "soft" ? "Company archived." : "Company deleted.",
+      });
+      await recordActivity(
+        result.mode === "soft" ? "archive" : "delete",
+        "company",
+        companyId,
+        result.mode === "soft" ? "Soft-deleted company via archived_at." : "Hard-deleted company fallback."
+      );
     } else {
-      setCompaniesError(error.message);
-      setActionMessage({ type: "error", text: `Company delete failed: ${error.message}` });
+      setCompaniesError(result.error ?? "Unknown error");
+      setActionMessage({ type: "error", text: `Company delete failed: ${result.error}` });
     }
     setCompanyActionId(null);
-  }, [fetchStats]);
+  }, [fetchStats, recordActivity, softDeleteEntity]);
 
   const handleAddSite = useCallback(async () => {
     const name = newSiteName.trim();
@@ -339,9 +457,10 @@ export function useDashboardData() {
       setSitesError(null);
       setNewSiteName("");
       await fetchStats();
+      await recordActivity("create", "site", String(data.id), `Created site "${data.name ?? ""}"`);
     }
     setAddingSite(false);
-  }, [newSiteName, selectedSiteCompanyId, companies, companyNameById, fetchStats]);
+  }, [newSiteName, selectedSiteCompanyId, companies, companyNameById, fetchStats, recordActivity]);
 
   const handleUpdateGuard = useCallback(async (guardId: string, name: string) => {
     const trimmed = name.trim();
@@ -359,27 +478,36 @@ export function useDashboardData() {
         prev.map((guard) => (String(guard.id) === guardId ? { ...guard, name: data.name } : guard))
       );
       setActionMessage({ type: "success", text: "Guard updated." });
+      await recordActivity("update", "guard", guardId, `Renamed guard to "${trimmed}"`);
     } else if (error) {
       setGuardsError(error.message);
       setActionMessage({ type: "error", text: `Guard update failed: ${error.message}` });
     }
     setGuardActionId(null);
-  }, []);
+  }, [recordActivity]);
 
   const handleDeleteGuard = useCallback(async (guardId: string) => {
     setGuardActionId(guardId);
-    const dbId = toDbId(guardId);
-    const { error } = await supabase.from("users").delete().eq("id", dbId);
-    if (!error) {
+    const result = await softDeleteEntity("users", guardId);
+    if (result.ok) {
       setGuards((prev) => prev.filter((guard) => String(guard.id) !== guardId));
       await fetchStats();
-      setActionMessage({ type: "success", text: "Guard deleted." });
+      setActionMessage({
+        type: "success",
+        text: result.mode === "soft" ? "Guard archived." : "Guard deleted.",
+      });
+      await recordActivity(
+        result.mode === "soft" ? "archive" : "delete",
+        "guard",
+        guardId,
+        result.mode === "soft" ? "Soft-deleted guard via archived_at." : "Hard-deleted guard fallback."
+      );
     } else {
-      setGuardsError(error.message);
-      setActionMessage({ type: "error", text: `Guard delete failed: ${error.message}` });
+      setGuardsError(result.error ?? "Unknown error");
+      setActionMessage({ type: "error", text: `Guard delete failed: ${result.error}` });
     }
     setGuardActionId(null);
-  }, [fetchStats]);
+  }, [fetchStats, recordActivity, softDeleteEntity]);
 
   const handleUpdateSite = useCallback(async (siteId: string, name: string) => {
     const trimmed = name.trim();
@@ -395,27 +523,36 @@ export function useDashboardData() {
     if (!error && data) {
       setSites((prev) => prev.map((site) => (String(site.id) === siteId ? { ...site, name: data.name } : site)));
       setActionMessage({ type: "success", text: "Site updated." });
+      await recordActivity("update", "site", siteId, `Renamed site to "${trimmed}"`);
     } else if (error) {
       setSitesError(error.message);
       setActionMessage({ type: "error", text: `Site update failed: ${error.message}` });
     }
     setSiteActionId(null);
-  }, []);
+  }, [recordActivity]);
 
   const handleDeleteSite = useCallback(async (siteId: string) => {
     setSiteActionId(siteId);
-    const dbId = toDbId(siteId);
-    const { error } = await supabase.from("sites").delete().eq("id", dbId);
-    if (!error) {
+    const result = await softDeleteEntity("sites", siteId);
+    if (result.ok) {
       setSites((prev) => prev.filter((site) => String(site.id) !== siteId));
       await fetchStats();
-      setActionMessage({ type: "success", text: "Site deleted." });
+      setActionMessage({
+        type: "success",
+        text: result.mode === "soft" ? "Site archived." : "Site deleted.",
+      });
+      await recordActivity(
+        result.mode === "soft" ? "archive" : "delete",
+        "site",
+        siteId,
+        result.mode === "soft" ? "Soft-deleted site via archived_at." : "Hard-deleted site fallback."
+      );
     } else {
-      setSitesError(error.message);
-      setActionMessage({ type: "error", text: `Site delete failed: ${error.message}` });
+      setSitesError(result.error ?? "Unknown error");
+      setActionMessage({ type: "error", text: `Site delete failed: ${result.error}` });
     }
     setSiteActionId(null);
-  }, [fetchStats]);
+  }, [fetchStats, recordActivity, softDeleteEntity]);
 
   const handleAssignGuard = useCallback(async () => {
     const activeGuardId = selectedGuardId || (guards[0] ? String(guards[0].id) : "");
@@ -440,24 +577,42 @@ export function useDashboardData() {
       ]);
       setShiftsError(null);
       await fetchStats();
+      await recordActivity("create", "shift", String(data.id), "Assigned guard to site shift.");
     }
     setAssigningShift(false);
-  }, [selectedGuardId, selectedShiftSiteId, guards, sites, guardNameById, siteNameById, fetchStats]);
+  }, [
+    selectedGuardId,
+    selectedShiftSiteId,
+    guards,
+    sites,
+    guardNameById,
+    siteNameById,
+    fetchStats,
+    recordActivity,
+  ]);
 
   const handleDeleteShift = useCallback(async (shiftId: string) => {
     setShiftActionId(shiftId);
-    const dbId = toDbId(shiftId);
-    const { error } = await supabase.from("shifts").delete().eq("id", dbId);
-    if (!error) {
+    const result = await softDeleteEntity("shifts", shiftId);
+    if (result.ok) {
       setShifts((prev) => prev.filter((shift) => String(shift.id) !== shiftId));
       await fetchStats();
-      setActionMessage({ type: "success", text: "Shift deleted." });
+      setActionMessage({
+        type: "success",
+        text: result.mode === "soft" ? "Shift archived." : "Shift deleted.",
+      });
+      await recordActivity(
+        result.mode === "soft" ? "archive" : "delete",
+        "shift",
+        shiftId,
+        result.mode === "soft" ? "Soft-deleted shift via archived_at." : "Hard-deleted shift fallback."
+      );
     } else {
-      setShiftsError(error.message);
-      setActionMessage({ type: "error", text: `Shift delete failed: ${error.message}` });
+      setShiftsError(result.error ?? "Unknown error");
+      setActionMessage({ type: "error", text: `Shift delete failed: ${result.error}` });
     }
     setShiftActionId(null);
-  }, [fetchStats]);
+  }, [fetchStats, recordActivity, softDeleteEntity]);
 
   const handleReassignShift = useCallback(
     async (shiftId: string, guardIdValue: string, siteIdValue: string) => {
@@ -487,13 +642,19 @@ export function useDashboardData() {
           )
         );
         setActionMessage({ type: "success", text: "Shift reassigned." });
+        await recordActivity(
+          "reassign",
+          "shift",
+          shiftId,
+          `Reassigned shift to guard ${guardIdValue} and site ${siteIdValue}.`
+        );
       } else if (error) {
         setShiftsError(error.message);
         setActionMessage({ type: "error", text: `Shift reassignment failed: ${error.message}` });
       }
       setShiftActionId(null);
     },
-    [guardNameById, siteNameById]
+    [guardNameById, siteNameById, recordActivity]
   );
 
   const handleCheckIn = useCallback(async () => {
@@ -538,9 +699,19 @@ export function useDashboardData() {
       ]);
       setCheckInsError(null);
       await fetchStats();
+      await recordActivity("create", "checkin", String(data.id), "Recorded guard check-in.");
     }
     setCheckingIn(false);
-  }, [selectedGuardId, selectedShiftSiteId, guards, sites, guardNameById, siteNameById, fetchStats]);
+  }, [
+    selectedGuardId,
+    selectedShiftSiteId,
+    guards,
+    sites,
+    guardNameById,
+    siteNameById,
+    fetchStats,
+    recordActivity,
+  ]);
 
   const handleReportIncident = useCallback(async () => {
     const description = incidentDescription.trim();
@@ -568,6 +739,7 @@ export function useDashboardData() {
       setIncidentsError(null);
       setIncidentDescription("");
       await fetchStats();
+      await recordActivity("create", "incident", String(data.id), "Reported incident.");
     }
     setReportingIncident(false);
   }, [
@@ -579,6 +751,7 @@ export function useDashboardData() {
     guardNameById,
     siteNameById,
     fetchStats,
+    recordActivity,
   ]);
 
   useEffect(() => {
@@ -624,18 +797,21 @@ export function useDashboardData() {
     shifts,
     checkIns,
     incidents,
+    activityLogs,
     companiesLoading,
     guardsLoading,
     sitesLoading,
     shiftsLoading,
     checkInsLoading,
     incidentsLoading,
+    activityLogsLoading,
     companiesError,
     guardsError,
     sitesError,
     shiftsError,
     checkInsError,
     incidentsError,
+    activityLogsError,
     newCompanyName,
     newGuardName,
     newSiteName,

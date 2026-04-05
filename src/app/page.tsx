@@ -2,6 +2,7 @@
 
 import { DashboardShell } from "@/components/dashboard-shell";
 import { canManageCore } from "@/features/auth/roles";
+import { ActivityLogPanel } from "@/features/dashboard/components/activity-log-panel";
 import { CheckInsSection } from "@/features/dashboard/components/checkins-section";
 import { CompaniesSection } from "@/features/dashboard/components/companies-section";
 import { GuardsSection } from "@/features/dashboard/components/guards-section";
@@ -113,6 +114,12 @@ function DashboardContent({ data }: { data: ReturnType<typeof useDashboardData> 
         setSelectedIncidentSiteId={data.setSelectedIncidentSiteId}
         setIncidentDescription={data.setIncidentDescription}
         onReportIncident={data.handleReportIncident}
+      />
+
+      <ActivityLogPanel
+        logs={data.activityLogs}
+        loading={data.activityLogsLoading}
+        error={data.activityLogsError}
       />
 
       {data.actionMessage ? (

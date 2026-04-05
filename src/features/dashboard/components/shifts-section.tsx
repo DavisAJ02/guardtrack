@@ -1,6 +1,7 @@
+import { useState } from "react";
 import type { Guard, Shift, Site } from "@/features/dashboard/types";
 import { getShiftGuardName, getShiftSiteName } from "@/features/dashboard/utils";
-import { Panel, StateText } from "@/features/dashboard/components/ui";
+import { Modal, Panel, StateText } from "@/features/dashboard/components/ui";
 
 type ShiftsSectionProps = {
   shifts: Shift[];
@@ -37,6 +38,22 @@ export function ShiftsSection({
   shiftActionId,
   canManage,
 }: ShiftsSectionProps) {
+  const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
+  const [editingGuardId, setEditingGuardId] = useState("");
+  const [editingSiteId, setEditingSiteId] = useState("");
+
+  const openReassignModal = (shift: Shift) => {
+    setEditingShiftId(String(shift.id));
+    setEditingGuardId(String(shift.guard_id ?? ""));
+    setEditingSiteId(String(shift.site_id ?? ""));
+  };
+
+  const closeReassignModal = () => {
+    setEditingShiftId(null);
+    setEditingGuardId("");
+    setEditingSiteId("");
+  };
+
   return (
     <Panel title="Shift Assignment" description="Assign guards to active site shifts">
       <div className="flex flex-col gap-3">
@@ -100,19 +117,7 @@ export function ShiftsSection({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        const nextGuardId = window.prompt(
-                          "Reassign guard ID",
-                          String(shift.guard_id ?? "")
-                        );
-                        if (!nextGuardId?.trim()) return;
-                        const nextSiteId = window.prompt(
-                          "Reassign site ID",
-                          String(shift.site_id ?? "")
-                        );
-                        if (!nextSiteId?.trim()) return;
-                        void onReassignShift(String(shift.id), nextGuardId, nextSiteId);
-                      }}
+                      onClick={() => openReassignModal(shift)}
                       disabled={shiftActionId === String(shift.id)}
                       className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -138,6 +143,59 @@ export function ShiftsSection({
           </ul>
         ) : null}
       </div>
+
+      <Modal open={Boolean(editingShiftId)} title="Reassign Shift" onClose={closeReassignModal}>
+        <div className="space-y-3">
+          <label className="block text-sm">
+            <span className="mb-1 block text-slate-600">Guard</span>
+            <select
+              value={editingGuardId}
+              onChange={(event) => setEditingGuardId(event.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
+            >
+              {guards.map((guard) => (
+                <option key={String(guard.id)} value={String(guard.id)}>
+                  {guard.name ? String(guard.name) : `Guard #${guard.id}`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block text-slate-600">Site</span>
+            <select
+              value={editingSiteId}
+              onChange={(event) => setEditingSiteId(event.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-slate-500"
+            >
+              {sites.map((site) => (
+                <option key={String(site.id)} value={String(site.id)}>
+                  {site.name ? String(site.name) : `Site #${site.id}`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeReassignModal}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!editingShiftId || !editingGuardId || !editingSiteId) return;
+                void onReassignShift(editingShiftId, editingGuardId, editingSiteId);
+                closeReassignModal();
+              }}
+              className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </Modal>
     </Panel>
   );
 }

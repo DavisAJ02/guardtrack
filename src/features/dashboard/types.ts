@@ -114,3 +114,12 @@ export type DashboardStats = {
   totalShifts: number;
   totalIncidentsToday: number;
 };
+
+export type ActivityLog = {
+  id: string | number;
+  action: string;
+  entity: string;
+  entity_id: string | number | null;
+  details: string | null;
+  created_at: string;
+};
