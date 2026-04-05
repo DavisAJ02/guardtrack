@@ -143,6 +143,7 @@ function ReportsPageContent() {
     <DashboardShell
       title="Reports"
       subtitle="Filter, search, sort, and export check-ins and incidents for operations reporting."
+      requiredRole="supervisor"
     >
       <Panel title="Report Filters" description="Filters persist in URL query parameters">
         <div className="mb-3 flex flex-wrap gap-2">

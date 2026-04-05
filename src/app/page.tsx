@@ -1,6 +1,7 @@
 "use client";
 
 import { DashboardShell } from "@/components/dashboard-shell";
+import { canManageCore } from "@/features/auth/roles";
 import { CheckInsSection } from "@/features/dashboard/components/checkins-section";
 import { CompaniesSection } from "@/features/dashboard/components/companies-section";
 import { GuardsSection } from "@/features/dashboard/components/guards-section";
@@ -8,16 +9,16 @@ import { IncidentsSection } from "@/features/dashboard/components/incidents-sect
 import { ShiftsSection } from "@/features/dashboard/components/shifts-section";
 import { SitesSection } from "@/features/dashboard/components/sites-section";
 import { StatsCards } from "@/features/dashboard/components/stats-cards";
+import { StateText } from "@/features/dashboard/components/ui";
 import { useDashboardData } from "@/features/dashboard/useDashboardData";
+import { useDashboardAuth } from "@/components/dashboard-shell";
 
-export default function Home() {
-  const data = useDashboardData();
+function DashboardContent({ data }: { data: ReturnType<typeof useDashboardData> }) {
+  const { role } = useDashboardAuth();
+  const canManage = canManageCore(role);
 
   return (
-    <DashboardShell
-      title="Executive Dashboard"
-      subtitle="Operational control for guards, sites, shifts, and live safety events."
-    >
+    <>
       <StatsCards stats={data.stats} loading={data.statsLoading} error={data.statsError} />
 
       <CompaniesSection
@@ -31,6 +32,7 @@ export default function Home() {
         onUpdateCompany={data.handleUpdateCompany}
         onDeleteCompany={data.handleDeleteCompany}
         companyActionId={data.companyActionId}
+        canManage={canManage}
       />
 
       <GuardsSection
@@ -47,6 +49,7 @@ export default function Home() {
         onUpdateGuard={data.handleUpdateGuard}
         onDeleteGuard={data.handleDeleteGuard}
         guardActionId={data.guardActionId}
+        canManage={canManage}
       />
 
       <SitesSection
@@ -63,6 +66,7 @@ export default function Home() {
         onUpdateSite={data.handleUpdateSite}
         onDeleteSite={data.handleDeleteSite}
         siteActionId={data.siteActionId}
+        canManage={canManage}
       />
 
       <ShiftsSection
@@ -78,7 +82,9 @@ export default function Home() {
         setSelectedShiftSiteId={data.setSelectedShiftSiteId}
         onAssignGuard={data.handleAssignGuard}
         onDeleteShift={data.handleDeleteShift}
+        onReassignShift={data.handleReassignShift}
         shiftActionId={data.shiftActionId}
+        canManage={canManage}
       />
 
       <CheckInsSection
@@ -108,6 +114,36 @@ export default function Home() {
         setIncidentDescription={data.setIncidentDescription}
         onReportIncident={data.handleReportIncident}
       />
+
+      {data.actionMessage ? (
+        <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-lg">
+          <div className="flex items-start justify-between gap-3">
+            <StateText tone={data.actionMessage.type === "error" ? "error" : "neutral"}>
+              {data.actionMessage.text}
+            </StateText>
+            <button
+              type="button"
+              onClick={data.clearActionMessage}
+              className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+export default function Home() {
+  const data = useDashboardData();
+
+  return (
+    <DashboardShell
+      title="Executive Dashboard"
+      subtitle="Operational control for guards, sites, shifts, and live safety events."
+    >
+      <DashboardContent data={data} />
     </DashboardShell>
   );
 }

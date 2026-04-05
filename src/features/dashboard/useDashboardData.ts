@@ -22,6 +22,10 @@ const INITIAL_STATS: DashboardStats = {
 };
 
 export function useDashboardData() {
+  const [actionMessage, setActionMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS);
@@ -128,6 +132,8 @@ export function useDashboardData() {
     setShiftsLoading(true);
     const { data, error } = await supabase.from("shifts").select(`
         id,
+        guard_id,
+        site_id,
         users(name),
         sites(name)
       `);
@@ -288,8 +294,10 @@ export function useDashboardData() {
         setCompanies((prev) =>
           prev.map((company) => (String(company.id) === companyId ? { ...company, name: data.name } : company))
         );
+      setActionMessage({ type: "success", text: "Company updated." });
       } else if (error) {
         setCompaniesError(error.message);
+      setActionMessage({ type: "error", text: `Company update failed: ${error.message}` });
       }
       setCompanyActionId(null);
     },
@@ -303,8 +311,10 @@ export function useDashboardData() {
     if (!error) {
       setCompanies((prev) => prev.filter((company) => String(company.id) !== companyId));
       await fetchStats();
+      setActionMessage({ type: "success", text: "Company deleted." });
     } else {
       setCompaniesError(error.message);
+      setActionMessage({ type: "error", text: `Company delete failed: ${error.message}` });
     }
     setCompanyActionId(null);
   }, [fetchStats]);
@@ -348,8 +358,10 @@ export function useDashboardData() {
       setGuards((prev) =>
         prev.map((guard) => (String(guard.id) === guardId ? { ...guard, name: data.name } : guard))
       );
+      setActionMessage({ type: "success", text: "Guard updated." });
     } else if (error) {
       setGuardsError(error.message);
+      setActionMessage({ type: "error", text: `Guard update failed: ${error.message}` });
     }
     setGuardActionId(null);
   }, []);
@@ -361,8 +373,10 @@ export function useDashboardData() {
     if (!error) {
       setGuards((prev) => prev.filter((guard) => String(guard.id) !== guardId));
       await fetchStats();
+      setActionMessage({ type: "success", text: "Guard deleted." });
     } else {
       setGuardsError(error.message);
+      setActionMessage({ type: "error", text: `Guard delete failed: ${error.message}` });
     }
     setGuardActionId(null);
   }, [fetchStats]);
@@ -380,8 +394,10 @@ export function useDashboardData() {
       .single();
     if (!error && data) {
       setSites((prev) => prev.map((site) => (String(site.id) === siteId ? { ...site, name: data.name } : site)));
+      setActionMessage({ type: "success", text: "Site updated." });
     } else if (error) {
       setSitesError(error.message);
+      setActionMessage({ type: "error", text: `Site update failed: ${error.message}` });
     }
     setSiteActionId(null);
   }, []);
@@ -393,8 +409,10 @@ export function useDashboardData() {
     if (!error) {
       setSites((prev) => prev.filter((site) => String(site.id) !== siteId));
       await fetchStats();
+      setActionMessage({ type: "success", text: "Site deleted." });
     } else {
       setSitesError(error.message);
+      setActionMessage({ type: "error", text: `Site delete failed: ${error.message}` });
     }
     setSiteActionId(null);
   }, [fetchStats]);
@@ -433,11 +451,50 @@ export function useDashboardData() {
     if (!error) {
       setShifts((prev) => prev.filter((shift) => String(shift.id) !== shiftId));
       await fetchStats();
+      setActionMessage({ type: "success", text: "Shift deleted." });
     } else {
       setShiftsError(error.message);
+      setActionMessage({ type: "error", text: `Shift delete failed: ${error.message}` });
     }
     setShiftActionId(null);
   }, [fetchStats]);
+
+  const handleReassignShift = useCallback(
+    async (shiftId: string, guardIdValue: string, siteIdValue: string) => {
+      if (!guardIdValue || !siteIdValue) return;
+      setShiftActionId(shiftId);
+      const shiftDbId = toDbId(shiftId);
+      const guardDbId = toDbId(guardIdValue);
+      const siteDbId = toDbId(siteIdValue);
+      const { data, error } = await supabase
+        .from("shifts")
+        .update({ guard_id: guardDbId, site_id: siteDbId })
+        .eq("id", shiftDbId)
+        .select("id, guard_id, site_id")
+        .single();
+      if (!error && data) {
+        setShifts((prev) =>
+          prev.map((shift) =>
+            String(shift.id) === shiftId
+              ? {
+                  ...shift,
+                  guard_id: data.guard_id as string | number | null,
+                  site_id: data.site_id as string | number | null,
+                  users: { name: guardNameById.get(String(data.guard_id)) ?? null },
+                  sites: { name: siteNameById.get(String(data.site_id)) ?? null },
+                }
+              : shift
+          )
+        );
+        setActionMessage({ type: "success", text: "Shift reassigned." });
+      } else if (error) {
+        setShiftsError(error.message);
+        setActionMessage({ type: "error", text: `Shift reassignment failed: ${error.message}` });
+      }
+      setShiftActionId(null);
+    },
+    [guardNameById, siteNameById]
+  );
 
   const handleCheckIn = useCallback(async () => {
     const activeGuardId = selectedGuardId || (guards[0] ? String(guards[0].id) : "");
@@ -595,6 +652,7 @@ export function useDashboardData() {
     assigningShift,
     checkingIn,
     reportingIncident,
+    actionMessage,
     companyActionId,
     guardActionId,
     siteActionId,
@@ -620,8 +678,10 @@ export function useDashboardData() {
     handleDeleteSite,
     handleAssignGuard,
     handleDeleteShift,
+    handleReassignShift,
     handleCheckIn,
     handleReportIncident,
     refreshAll,
+    clearActionMessage: () => setActionMessage(null),
   };
 }

@@ -16,6 +16,7 @@ type SitesSectionProps = {
   onUpdateSite: (siteId: string, name: string) => Promise<void>;
   onDeleteSite: (siteId: string) => Promise<void>;
   siteActionId: string | null;
+  canManage: boolean;
 };
 
 export function SitesSection({
@@ -32,6 +33,7 @@ export function SitesSection({
   onUpdateSite,
   onDeleteSite,
   siteActionId,
+  canManage,
 }: SitesSectionProps) {
   return (
     <Panel title="Site Management" description="Create and organize guard locations">
@@ -42,14 +44,14 @@ export function SitesSection({
           onChange={(event) => setNewSiteName(event.target.value)}
           placeholder="Enter site name"
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-500"
-          disabled={adding}
+          disabled={adding || !canManage}
           aria-label="Site name"
         />
         <select
           value={selectedSiteCompanyId}
           onChange={(event) => setSelectedSiteCompanyId(event.target.value)}
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-500"
-          disabled={adding || companies.length === 0}
+          disabled={adding || companies.length === 0 || !canManage}
           aria-label="Site company"
         >
           {companies.length === 0 ? <option value="">No companies available</option> : null}
@@ -62,12 +64,15 @@ export function SitesSection({
         <button
           type="button"
           onClick={() => void onAddSite()}
-          disabled={adding || !newSiteName.trim() || !selectedSiteCompanyId || companies.length === 0}
+          disabled={
+            adding || !newSiteName.trim() || !selectedSiteCompanyId || companies.length === 0 || !canManage
+          }
           className="w-fit rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {adding ? "Adding..." : "Add Site"}
         </button>
       </div>
+      {!canManage ? <StateText>Read-only for your role.</StateText> : null}
 
       <div className="mt-4">
         {loading ? <StateText>Loading sites...</StateText> : null}
@@ -84,39 +89,41 @@ export function SitesSection({
                   <p className="text-sm font-medium">{site.name ? String(site.name) : `Site #${site.id}`}</p>
                   <p className="text-xs text-slate-600">{getSiteCompanyName(site)}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextName = window.prompt(
-                        "Update site name",
-                        site.name ? String(site.name) : ""
-                      );
-                      if (nextName && nextName.trim()) {
-                        void onUpdateSite(String(site.id), nextName);
-                      }
-                    }}
-                    disabled={siteActionId === String(site.id)}
-                    className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const confirmed = window.confirm(
-                        "Delete this site? This can fail if related shifts/check-ins/incidents exist."
-                      );
-                      if (confirmed) {
-                        void onDeleteSite(String(site.id));
-                      }
-                    }}
-                    disabled={siteActionId === String(site.id)}
-                    className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Delete
-                  </button>
-                </div>
+                {canManage ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextName = window.prompt(
+                          "Update site name",
+                          site.name ? String(site.name) : ""
+                        );
+                        if (nextName && nextName.trim()) {
+                          void onUpdateSite(String(site.id), nextName);
+                        }
+                      }}
+                      disabled={siteActionId === String(site.id)}
+                      className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const confirmed = window.confirm(
+                          "Delete this site? This can fail if related shifts/check-ins/incidents exist."
+                        );
+                        if (confirmed) {
+                          void onDeleteSite(String(site.id));
+                        }
+                      }}
+                      disabled={siteActionId === String(site.id)}
+                      className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

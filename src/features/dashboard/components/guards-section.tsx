@@ -16,6 +16,7 @@ type GuardsSectionProps = {
   onUpdateGuard: (guardId: string, name: string) => Promise<void>;
   onDeleteGuard: (guardId: string) => Promise<void>;
   guardActionId: string | null;
+  canManage: boolean;
 };
 
 export function GuardsSection({
@@ -32,6 +33,7 @@ export function GuardsSection({
   onUpdateGuard,
   onDeleteGuard,
   guardActionId,
+  canManage,
 }: GuardsSectionProps) {
   return (
     <Panel title="Guard Management" description="Add and review security personnel">
@@ -42,14 +44,14 @@ export function GuardsSection({
           onChange={(event) => setNewGuardName(event.target.value)}
           placeholder="Enter guard name"
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-500"
-          disabled={adding}
+          disabled={adding || !canManage}
           aria-label="Guard name"
         />
         <select
           value={selectedCompanyId}
           onChange={(event) => setSelectedCompanyId(event.target.value)}
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-slate-500"
-          disabled={adding || companies.length === 0}
+          disabled={adding || companies.length === 0 || !canManage}
           aria-label="Guard company"
         >
           {companies.length === 0 ? <option value="">No companies available</option> : null}
@@ -62,12 +64,15 @@ export function GuardsSection({
         <button
           type="button"
           onClick={() => void onAddGuard()}
-          disabled={adding || !newGuardName.trim() || !selectedCompanyId || companies.length === 0}
+          disabled={
+            adding || !newGuardName.trim() || !selectedCompanyId || companies.length === 0 || !canManage
+          }
           className="w-fit rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {adding ? "Adding..." : "Add Guard"}
         </button>
       </div>
+      {!canManage ? <StateText>Read-only for your role.</StateText> : null}
 
       <div className="mt-4">
         {loading ? <StateText>Loading guards...</StateText> : null}
@@ -86,39 +91,41 @@ export function GuardsSection({
                   </p>
                   <p className="text-xs text-slate-600">{getGuardCompanyName(guard)}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextName = window.prompt(
-                        "Update guard name",
-                        guard.name ? String(guard.name) : ""
-                      );
-                      if (nextName && nextName.trim()) {
-                        void onUpdateGuard(String(guard.id), nextName);
-                      }
-                    }}
-                    disabled={guardActionId === String(guard.id)}
-                    className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const confirmed = window.confirm(
-                        "Delete this guard? This can fail if related shifts/check-ins/incidents exist."
-                      );
-                      if (confirmed) {
-                        void onDeleteGuard(String(guard.id));
-                      }
-                    }}
-                    disabled={guardActionId === String(guard.id)}
-                    className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Delete
-                  </button>
-                </div>
+                {canManage ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextName = window.prompt(
+                          "Update guard name",
+                          guard.name ? String(guard.name) : ""
+                        );
+                        if (nextName && nextName.trim()) {
+                          void onUpdateGuard(String(guard.id), nextName);
+                        }
+                      }}
+                      disabled={guardActionId === String(guard.id)}
+                      className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const confirmed = window.confirm(
+                          "Delete this guard? This can fail if related shifts/check-ins/incidents exist."
+                        );
+                        if (confirmed) {
+                          void onDeleteGuard(String(guard.id));
+                        }
+                      }}
+                      disabled={guardActionId === String(guard.id)}
+                      className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
