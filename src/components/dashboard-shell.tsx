@@ -27,6 +27,12 @@ export const useDashboardAuth = () => useContext(DashboardAuthContext);
 
 const navItems = [
   { href: "/", label: "Dashboard" },
+  { href: "/companies", label: "Companies" },
+  { href: "/guards", label: "Guards" },
+  { href: "/sites", label: "Sites" },
+  { href: "/shifts", label: "Shifts" },
+  { href: "/checkins", label: "Check-Ins" },
+  { href: "/incidents", label: "Incidents" },
   { href: "/insights", label: "Insights" },
   { href: "/reports", label: "Reports" },
 ];
